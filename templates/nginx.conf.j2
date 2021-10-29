@@ -1,0 +1,70 @@
+# {{ ansible_managed }}
+
+user  {{ nginx_user }};
+worker_processes  {{ nginx_worker_processes }};
+
+error_log  {{ nginx_error_log }};
+pid        {{ nginx_pidfile }};
+
+events {
+    worker_connections  {{ nginx_worker_connections }};
+}
+
+http {
+    include       {{ nginx_mime_file_path }};
+    default_type  application/octet-stream;
+
+    log_format  main  {{ nginx_log_format|indent(23) }};
+
+    access_log  {{ nginx_access_log }};
+
+    sendfile        {{ nginx_sendfile }};
+    tcp_nopush      {{ nginx_tcp_nopush }};
+    tcp_nodelay     {{ nginx_tcp_nodelay }};
+
+    keepalive_timeout  {{ nginx_keepalive_timeout }};
+    keepalive_requests {{ nginx_keepalive_requests }};
+
+    server_tokens {{ nginx_server_tokens }};
+{% if nginx_proxy_cache_path %}
+    proxy_cache_path {{ nginx_proxy_cache_path }};
+{% endif %}
+
+    #gzip  on;
+
+    fastcgi_buffers {{ fastcgi_buffers }};
+    fastcgi_buffer_size {{ fastcgi_buffer_size }};
+    client_max_body_size {{ client_max_body_size }};
+{#
+ # Includes
+ #}
+    {% if nginx_includes is defined %}
+    {% for nginx_include in nginx_includes %}
+    include {{ nginx_include }}
+    {% endfor %}
+    {% endif %}
+
+{#
+ # Upstream
+ #}
+    {% if nginx_upstreams is defined %}
+    {% for upstream_name, upstream_conf in nginx_upstreams.items() %}
+
+    upstream {{ upstream_name }} {
+      {{ upstream_conf | indent(12, indentfirst=True) }}
+    }
+    {% endfor %}
+    {% endif %}
+
+{#
+ # Virtual Hosts
+ #}
+    {% for item in nginx_vhosts %}
+
+    {% include './vhost.conf.j2' | indent(6, indentfirst=False) %}
+    {% endfor %}
+#    include /etc/nginx/conf.d/*.conf;
+#    include {{ nginx_conf_path }}/*.conf;
+
+}
+

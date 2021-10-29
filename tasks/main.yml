@@ -1,0 +1,82 @@
+---
+- name: Add Nginx Yum repositoy
+  yum_repository:
+    baseurl: http://nginx.org/packages/centos/$releasever/$basearch/
+    description: Nginx
+    name: nginx-stable
+    mirrorlist: 
+    gpgcheck: true
+    gpgkey: https://nginx.org/keys/nginx_signing.key
+
+- name: Install Nginx
+  yum:
+    name: nginx
+    state: present
+
+- name: Ensure nginx_conf_path exists.
+  file:
+    path: "{{ nginx_conf_path }}"
+    state: directory
+#  notify: Reload Webserver
+
+- name: Remove Nginx default.conf
+  file:
+    path: "{{ nginx_default_vhost_path }}"
+    state: absent
+  when: nginx_remove_default_conf
+
+- name: Ensure nginx_vhost_path exists.
+  file:
+    path: "{{ nginx_vhost_path }}"
+    state: directory
+#  notify: Reload Webserver
+
+#- name: Find Nginx vhost conf file glob
+#  find:
+#    paths: {{nginx_conf_path }}
+#    patterns: *.conf
+#  register: nginx_conf_delete
+#
+#- name: Remove Nginx vhost conf files
+#  file:
+#    path: "{{ item.path }}"
+#    state: absent
+#  with_items: "{{ nginx_conf_delete.files }}"
+  
+#- name: Add managed vhost config files
+#  template:
+#    src: "{{ item.template|default(nginx_vhost_template) }}"
+#    dest: "{{ nginx_conf_path }}/{{ item.filename|default(item.server_name.split(' ')[0] ~ '.conf') }}"
+#    force: true
+#    owner: root
+#    group: "{{ root_group }}"
+#    mode: 0644
+#  when: item.state|default('present') != 'absent'
+#  with_items: "{{ nginx_vhosts }}"
+#  notify: Reload Webserver
+
+- name: Copy nginx configuration in place
+  template:
+    src: "{{ nginx_conf_template }}"
+    dest: "{{ nginx_conf_file_path }}"
+    owner: root
+    group: "{{ root_group }}"
+    mode: 0644
+  notify: Reload Webserver
+
+- name: Ensure Nginx started
+  service:
+    name: nginx
+    state: started
+    enabled: true
+
+- name: Open Nginx public ports
+  firewalld:
+    port: "{{ item.port | default(omit) }}"
+    service: "{{ item.service | default(omit) }}"
+    permanent: true
+    immediate: true
+    state: enabled
+  when: ansible_distribution_file_variety == 'RedHat'
+  with_items: "{{ nginx_public_ports }}"
+

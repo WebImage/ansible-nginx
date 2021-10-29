@@ -1,0 +1,10 @@
+---
+- name: Restart Webserver
+  service:
+    name: nginx
+    state: restarted
+
+- name: Reload Webserver
+  service:
+    name: nginx
+    state: reloaded
